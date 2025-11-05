@@ -14,7 +14,7 @@ export function Navbar() {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-xl font-bold">
             <Scissors className="h-6 w-6 text-accent" />
-            <span>Premium Cuts</span>
+            <span>Em Blendzz</span>
           </Link>
 
           <div className="flex items-center gap-4">
