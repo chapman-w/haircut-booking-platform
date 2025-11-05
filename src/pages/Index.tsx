@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { Scissors, Calendar, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import heroImage from "@/assets/barber-hero.jpg";
+import heroImage from "@/assets/emblendzz.jpg";
 
 const Index = () => {
   const { user } = useAuth();
