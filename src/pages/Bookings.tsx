@@ -116,201 +116,120 @@ export default function Bookings() {
     return acc;
   }, {} as Record<string, TimeSlot[]>);
 
-  const uniqueDates = Object.keys(groupedSlots).map(dateStr => new Date(dateStr));
-
-  const filteredSlots = selectedDate
-    ? availableSlots.filter(slot => 
-        isSameDay(new Date(slot.start_time), selectedDate)
-      )
-    : availableSlots;
+  const uniqueDates = Object.keys(groupedSlots).filter(dateStr => {
+    if (!selectedDate) return true;
+    return isSameDay(new Date(dateStr), selectedDate);
+  });
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Book Your Cut</h1>
-          <p className="text-muted-foreground text-lg">Choose a time that works for you</p>
-        </div>
-
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <h1 className="text-3xl font-bold mb-8">Book Appointment</h1>
+        
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Available Slots - Takes 2 columns */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-2xl">
-                    <CalendarDays className="h-6 w-6 text-accent" />
-                    Available Times
-                  </CardTitle>
-                  <CardDescription className="mt-2">
-                    {filteredSlots.length} slots available
-                  </CardDescription>
-                </div>
-                {selectedDate && (
-                  <Button 
-                    variant="outline" 
+          {/* Available Slots */}
+          <div className="lg:col-span-2">
+            <h2 className="text-xl font-semibold mb-4">Available Times</h2>
+            
+            {/* Date Filter */}
+            {Object.keys(groupedSlots).length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  variant={selectedDate === null ? "default" : "outline"}
+                  onClick={() => setSelectedDate(null)}
+                  size="sm"
+                >
+                  All
+                </Button>
+                {Object.keys(groupedSlots).map((date) => (
+                  <Button
+                    key={date}
+                    variant={selectedDate && isSameDay(new Date(date), selectedDate) ? "default" : "outline"}
+                    onClick={() => setSelectedDate(new Date(date))}
                     size="sm"
-                    onClick={() => setSelectedDate(null)}
                   >
-                    <X className="h-4 w-4 mr-1" />
-                    Clear Filter
+                    {format(new Date(date), "MMM d")}
                   </Button>
-                )}
+                ))}
               </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading slots...</p>
-                </div>
-              ) : uniqueDates.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground text-lg">No available slots at the moment</p>
-                  <p className="text-sm text-muted-foreground mt-2">Check back soon!</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Date Filter Pills */}
-                  {!selectedDate && (
-                    <div className="mb-6">
-                      <p className="text-sm font-medium mb-3">Filter by date:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {uniqueDates.map((date) => (
-                          <Button
-                            key={date.toISOString()}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedDate(date)}
-                            className="hover:bg-accent/10 hover:text-accent hover:border-accent"
-                          >
-                            {format(date, "MMM d")}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            )}
 
-                  {/* Slots Grid */}
-                  <div className="grid sm:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2">
-                    {filteredSlots.map((slot) => {
-                      const slotDate = new Date(slot.start_time);
-                      const isToday = isSameDay(slotDate, new Date());
-                      
-                      return (
-                        <div
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <Card className="p-6">
+                <p className="text-muted-foreground text-center">No slots available</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {uniqueDates.map((date) => (
+                  <div key={date}>
+                    <h3 className="font-medium mb-2">
+                      {format(new Date(date), "EEE, MMM d")}
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {groupedSlots[date].map((slot) => (
+                        <Button
                           key={slot.id}
-                          className="group relative rounded-xl border-2 bg-card p-4 hover:border-accent/50 hover:shadow-md transition-all"
+                          onClick={() => handleBookSlot(slot.id)}
+                          disabled={loading}
+                          variant="outline"
+                          className="justify-start"
                         >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="font-semibold text-lg mb-1">
-                                {format(slotDate, "EEEE, MMM d")}
-                              </div>
-                              {isToday && (
-                                <span className="inline-block text-xs font-medium text-accent bg-accent/10 px-2 py-1 rounded-full">
-                                  Today
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                            <Clock className="h-4 w-4 text-accent" />
-                            <span className="font-medium">
-                              {format(slotDate, "h:mm a")} - {format(new Date(slot.end_time), "h:mm a")}
-                            </span>
-                          </div>
-                          <Button 
-                            variant="hero" 
-                            className="w-full"
-                            onClick={() => handleBookSlot(slot.id)}
-                          >
-                            <Check className="h-4 w-4" />
-                            Book This Time
-                          </Button>
-                        </div>
-                      );
-                    })}
+                          {format(new Date(slot.start_time), "h:mm a")}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {/* My Bookings - Takes 1 column */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Check className="h-5 w-5 text-accent" />
-                My Appointments
-              </CardTitle>
-              <CardDescription>
-                {myBookings.length} {myBookings.length === 1 ? 'booking' : 'bookings'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
-                </div>
-              ) : myBookings.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                  <p className="text-muted-foreground">No bookings yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">Book your first appointment!</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                  {myBookings.map((booking) => {
-                    const bookingDate = new Date(booking.time_slots.start_time);
-                    const isPastBooking = isPast(bookingDate);
-                    
-                    return (
-                      <div
-                        key={booking.id}
-                        className={`rounded-lg border-2 p-4 ${
-                          isPastBooking 
-                            ? 'bg-muted/30 border-muted opacity-60' 
-                            : 'bg-accent/5 border-accent/30'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <div className="font-semibold mb-1">
-                              {format(bookingDate, "MMM d, yyyy")}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {format(bookingDate, "h:mm a")}
-                            </div>
-                          </div>
-                          {!isPastBooking && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleCancelBooking(booking.id)}
-                              className="hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        {isPastBooking && (
-                          <span className="inline-block text-xs text-muted-foreground mt-2">
-                            Completed
-                          </span>
-                        )}
+          {/* Your Bookings */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Your Bookings</h2>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : myBookings.length === 0 ? (
+              <Card className="p-4">
+                <p className="text-sm text-muted-foreground text-center">No bookings</p>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {myBookings.map((booking) => {
+                  const isPastBooking = isPast(new Date(booking.time_slots.end_time));
+                  return (
+                    <Card key={booking.id} className="p-3">
+                      <div className="text-sm font-medium">
+                        {format(new Date(booking.time_slots.start_time), "MMM d")}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      <div className="text-sm text-muted-foreground">
+                        {format(new Date(booking.time_slots.start_time), "h:mm a")}
+                      </div>
+                      {!isPastBooking && (
+                        <Button
+                          onClick={() => handleCancelBooking(booking.id)}
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
