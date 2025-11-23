@@ -9,48 +9,32 @@ export function Navbar() {
   const { isAdmin } = useUserRole(user?.id);
 
   return (
-    <nav className="border-b bg-card">
-      <div className="container mx-auto px-4 py-4">
+    <nav className="border-b">
+      <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-xl font-bold">
-            <Scissors className="h-6 w-6 text-accent" />
-            <span>Em Blendzz</span>
+          <Link to="/" className="flex items-center gap-2 font-bold">
+            <Scissors className="h-5 w-5" />
+            Em Blendzz
           </Link>
-
-          <div className="flex items-center gap-4">
+          
+          <div className="flex items-center gap-2">
             {user ? (
               <>
-                <Link to="/">
-                  <Button variant="ghost" size="sm">
-                    <Home className="h-4 w-4" />
-                    Home
-                  </Button>
+                <Link to="/bookings">
+                  <Button variant="ghost" size="sm">Book</Button>
                 </Link>
-                {isAdmin ? (
+                {isAdmin && (
                   <Link to="/admin">
-                    <Button variant="ghost" size="sm">
-                      <Calendar className="h-4 w-4" />
-                      Manage Slots
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link to="/bookings">
-                    <Button variant="ghost" size="sm">
-                      <Calendar className="h-4 w-4" />
-                      My Bookings
-                    </Button>
+                    <Button variant="ghost" size="sm">Admin</Button>
                   </Link>
                 )}
-                <Button variant="outline" size="sm" onClick={signOut}>
-                  <LogOut className="h-4 w-4" />
+                <Button onClick={signOut} variant="outline" size="sm">
                   Sign Out
                 </Button>
               </>
             ) : (
               <Link to="/auth">
-                <Button variant="hero" size="sm">
-                  Sign In
-                </Button>
+                <Button size="sm">Sign In</Button>
               </Link>
             )}
           </div>
