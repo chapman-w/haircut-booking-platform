@@ -12,7 +12,10 @@ export function useUserRole(userId: string | undefined) {
       return;
     }
 
+    let cancelled = false;
+
     const checkRole = async () => {
+      setLoading(true);
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
@@ -20,6 +23,11 @@ export function useUserRole(userId: string | undefined) {
         .eq("role", "admin")
         .maybeSingle();
 
+      // Don't update state if this effect was cancelled (userId changed)
+      if (cancelled) {
+        return;
+      }
+      
       if (!error && data) {
         setIsAdmin(true);
       } else {
@@ -29,6 +37,10 @@ export function useUserRole(userId: string | undefined) {
     };
 
     checkRole();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   return { isAdmin, loading };
