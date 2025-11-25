@@ -7,12 +7,23 @@ import { Navbar } from "@/components/Navbar";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Calendar as CalendarIcon, Clock, Trash2, Plus, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Trash2, Plus, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, List, AlertTriangle } from "lucide-react";
 import { format, startOfDay, addHours, isSameDay, parseISO, isSameMonth, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, getHours, getMinutes } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface TimeSlot {
   id: string;
@@ -33,6 +44,7 @@ export default function Admin() {
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
   const [calendarView, setCalendarView] = useState<'week' | 'list'>('week');
+  const [clearingSlots, setClearingSlots] = useState(false);
   const slotDuration = 30; // Fixed 30 minutes
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -158,6 +170,47 @@ export default function Admin() {
       setSlots(data || []);
     }
     setLoading(false);
+  };
+
+  // Clear all unbooked future time slots
+  const handleClearFutureSlots = async () => {
+    setClearingSlots(true);
+    
+    // Get all unbooked slots that are in the future
+    const now = new Date().toISOString();
+    const { data: futureUnbookedSlots, error: fetchError } = await supabase
+      .from("time_slots")
+      .select("id")
+      .eq("is_booked", false)
+      .gte("start_time", now);
+
+    if (fetchError) {
+      toast.error("Failed to fetch future slots: " + fetchError.message);
+      setClearingSlots(false);
+      return;
+    }
+
+    if (!futureUnbookedSlots || futureUnbookedSlots.length === 0) {
+      toast.info("No unbooked future slots to clear");
+      setClearingSlots(false);
+      return;
+    }
+
+    // Delete all the unbooked future slots
+    const slotIds = futureUnbookedSlots.map(slot => slot.id);
+    const { error: deleteError } = await supabase
+      .from("time_slots")
+      .delete()
+      .in("id", slotIds);
+
+    if (deleteError) {
+      toast.error("Failed to clear slots: " + deleteError.message);
+    } else {
+      toast.success(`Cleared ${slotIds.length} unbooked future time slots`);
+      fetchSlots(); // Refresh the slots list
+    }
+
+    setClearingSlots(false);
   };
 
   // Generate time slots for a day (9 AM to 10 PM, 30-minute intervals)
@@ -403,6 +456,14 @@ export default function Admin() {
     }
   };
 
+  // Count unbooked future slots
+  const getUnbookedFutureCount = () => {
+    const now = new Date();
+    return slots.filter(slot => {
+      const slotDate = new Date(slot.start_time);
+      return slotDate > now && !slot.is_booked;
+    }).length;
+  };
 
   // Show loading state while checking auth or role
   if (authLoading || roleLoading) {
@@ -485,6 +546,45 @@ export default function Admin() {
                       <div>Booked: {slots.filter((s) => s.is_booked).length}</div>
                 </div>
                 </div>
+                
+                {/* Clear Future Slots Button */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full mt-4"
+                      disabled={getUnbookedFutureCount() === 0 || clearingSlots}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear All Future Slots ({getUnbookedFutureCount()})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          Clear All Future Time Slots?
+                        </div>
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all {getUnbookedFutureCount()} unbooked time slots 
+                        that are scheduled for the future. Booked slots will not be affected.
+                        <br /><br />
+                        <strong>This action cannot be undone.</strong>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleClearFutureSlots}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {clearingSlots ? "Clearing..." : "Clear All Future Slots"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
             </CardContent>
           </Card>
 
@@ -859,74 +959,6 @@ export default function Admin() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Gallery tab temporarily commented out */}
-          {/* <TabsContent value="gallery" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-accent" />
-                  Gallery Management
-                </CardTitle>
-                <CardDescription>
-                  Upload and manage gallery images
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6 p-4 border rounded-lg">
-                  <div className="space-y-3">
-                    <div>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        className="mb-2"
-                      />
-                      </div>
-                      <Button
-                      onClick={handleUploadImage}
-                      disabled={!selectedFile || uploading}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {uploading ? "Uploading..." : "Upload Image"}
-                      </Button>
-                    </div>
-                </div>
-                
-                {galleryImages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">No gallery images yet</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {galleryImages.map((image) => (
-                      <Card key={image.id} className="overflow-hidden">
-                        <div className="aspect-square overflow-hidden bg-muted">
-                          <img
-                            src={image.image_url}
-                            alt="Gallery image"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <CardContent className="p-3">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteImage(image.id)}
-                            className="w-full"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        </CardContent>
-                      </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          </TabsContent> */}
         </Tabs>
       </main>
     </div>
